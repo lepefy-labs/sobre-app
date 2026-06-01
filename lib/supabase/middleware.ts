@@ -13,25 +13,22 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: object }[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options as object)
           )
         },
       },
     }
   )
 
-  // Refresh sessione (IMPORTANTE: non rimuovere)
   const { data: { user } } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
 
-  // Rotte protette: redirect al login se non autenticato
   const protectedRoutes = ['/dashboard', '/onboarding', '/profile']
   const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
 
@@ -42,7 +39,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Se autenticato e tenta di accedere al login, redirect al dashboard
   if (user && pathname.startsWith('/auth/login')) {
     const homeUrl = request.nextUrl.clone()
     homeUrl.pathname = '/dashboard/home'
