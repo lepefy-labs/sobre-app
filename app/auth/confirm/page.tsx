@@ -18,17 +18,58 @@ function ConfirmInner() {
       return
     }
 
-    const supabase = createClient()
+    async function verify() {
+      const supabase = createClient()
 
-    supabase.auth
-      .verifyOtp({ token_hash, type: type as 'magiclink' | 'signup' | 'email' })
-      .then(({ data, error }) => {
-        if (error || !data.user) {
-          router.replace('/auth/login?error=auth_callback_failed')
-        } else {
-          router.replace(redirectTo)
+      // @supabase/supabase-js v2.43 does not include the code_verifier in
+      // verifyOtp() for pkce_ tokens, so Supabase returns user but session:null.
+      // Read the verifier from the cookie set by signInWithOtp() and POST
+      // directly to /auth/v1/verify so the PKCE exchange completes correctly.
+      if (token_hash!.startsWith('pkce_')) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const ref = new URL(supabaseUrl).hostname.split('.')[0]
+        const cookieName = `sb-${ref}-auth-token-code-verifier`
+        const match = document.cookie
+          .split(';')
+          .find(c => c.trim().startsWith(cookieName + '='))
+        const codeVerifier = match
+          ? decodeURIComponent(match.trim().slice(cookieName.length + 1))
+          : null
+
+        if (codeVerifier) {
+          const res = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            },
+            body: JSON.stringify({ token_hash, type, code_verifier: codeVerifier }),
+          })
+          const body = await res.json()
+          if (body.access_token && body.refresh_token) {
+            await supabase.auth.setSession({
+              access_token: body.access_token,
+              refresh_token: body.refresh_token,
+            })
+            router.replace(redirectTo)
+            return
+          }
         }
+      }
+
+      // Fallback for non-PKCE tokens (standard OTP)
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: token_hash!,
+        type: type as 'magiclink' | 'signup' | 'email',
       })
+      if (error || !data.user) {
+        router.replace('/auth/login?error=auth_callback_failed')
+      } else {
+        router.replace(redirectTo)
+      }
+    }
+
+    verify()
   }, [router, searchParams])
 
   return (
