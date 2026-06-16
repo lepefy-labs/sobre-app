@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
+import type { User } from '@supabase/supabase-js'
+
+// Force dynamic so Vercel never caches this route and strips Set-Cookie headers.
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -9,11 +13,20 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard/home'
 
-  // Accumulate cookies that Supabase wants to set, then apply them to the
-  // final redirect response. Using next/headers cookieStore.set() here would
-  // write into the framework's implicit response, not into our NextResponse.redirect(),
-  // so the browser would receive the redirect with no Set-Cookie headers and
-  // the session would be lost immediately.
+  // Collect cookies that Supabase wants to persist and apply them manually to
+  // the final redirect response. We cannot use next/headers cookieStore.set()
+  // here because those writes go into Next.js's implicit response, not into the
+  // explicit NextResponse.redirect() we return — so the browser would receive
+  // the redirect with no Set-Cookie headers and the session would be lost.
+  //
+  // IMPORTANT: we do NOT call supabase.auth.getUser() after the OTP/code
+  // exchange. getUser() internally calls getSession(), which reads from
+  // getAll() — still seeing the original empty request cookies, not the ones
+  // just written by verifyOtp. In some @supabase/ssr versions this causes a
+  // second setAll() call with maxAge=0 that overwrites the valid session
+  // cookies in pendingCookies, effectively deleting the session before the
+  // browser ever receives it. Instead we use the User object returned directly
+  // by verifyOtp / exchangeCodeForSession.
   const pendingCookies: { name: string; value: string; options?: object }[] = []
 
   const supabase = createServerClient<Database>(
@@ -31,41 +44,41 @@ export async function GET(request: NextRequest) {
     }
   )
 
-  let authFailed = true
+  let user: User | null = null
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) authFailed = false
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) user = data.user
   } else if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash,
       type: type as 'magiclink' | 'signup' | 'email',
     })
-    if (!error) authFailed = false
+    if (!error) user = data.user
   }
 
-  if (authFailed) {
+  if (!user) {
     return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
   }
 
+  // Check onboarding using the User returned by the auth operation — no
+  // extra getUser() call that would read stale empty request cookies.
   let destination = `${origin}${redirectTo}`
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', user.id)
-      .single<{ onboarding_completed: boolean }>()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('onboarding_completed')
+    .eq('id', user.id)
+    .single<{ onboarding_completed: boolean }>()
 
-    if (profile && !profile.onboarding_completed) {
-      destination = `${origin}/onboarding`
-    }
+  if (profile && !profile.onboarding_completed) {
+    destination = `${origin}/onboarding`
   }
 
   const response = NextResponse.redirect(destination)
 
-  // Attach session cookies to the redirect so the browser stores them.
+  // Attach every cookie Supabase asked to set (session chunks, code-verifier
+  // deletion, etc.) to the redirect response so the browser stores them.
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options as object)
   })

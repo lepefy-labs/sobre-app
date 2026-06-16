@@ -33,16 +33,26 @@ export async function updateSession(request: NextRequest) {
   const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
 
   if (isProtected && !user) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    url.searchParams.set('redirectTo', pathname)
+    const response = NextResponse.redirect(url)
+    // Copy any cookies that getUser() may have written (e.g. a token refresh
+    // attempt) so they reach the browser and are not silently discarded.
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      response.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return response
   }
 
   if (user && pathname.startsWith('/auth/login')) {
-    const homeUrl = request.nextUrl.clone()
-    homeUrl.pathname = '/dashboard/home'
-    return NextResponse.redirect(homeUrl)
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard/home'
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      response.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return response
   }
 
   return supabaseResponse

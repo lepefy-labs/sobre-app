@@ -9,12 +9,12 @@ export const config = {
   matcher: [
     /*
      * Escludi:
-     * - _next/static (file statici)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - manifest.json, sw.js (PWA)
+     * - _next/static, _next/image (asset statici)
+     * - favicon.ico, manifest.json, sw.js, icons (PWA)
+     * - /api/auth/callback (il callback gestisce i cookie da solo — il
+     *   middleware non ha sessione in questo punto e non deve interferire)
      * - /api/webhooks (webhook Stripe: autenticato via signature)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|api/webhooks).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|api/auth/callback|api/webhooks).*)',
   ],
 }
