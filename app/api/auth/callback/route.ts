@@ -1,44 +1,56 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import type { Database } from '@/types/database'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type')
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard/home'
 
-  const supabase = createClient()
+  // Accumulate cookies that Supabase wants to set, then apply them to the
+  // final redirect response. Using next/headers cookieStore.set() here would
+  // write into the framework's implicit response, not into our NextResponse.redirect(),
+  // so the browser would receive the redirect with no Set-Cookie headers and
+  // the session would be lost immediately.
+  const pendingCookies: { name: string; value: string; options?: object }[] = []
 
-  // Flusso PKCE con code (OAuth)
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          pendingCookies.push(...cookiesToSet)
+        },
+      },
+    }
+  )
+
+  let authFailed = true
+
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return handlePostAuth(supabase, origin, redirectTo)
-    }
-  }
-
-  // Flusso magic link con token_hash
-  if (token_hash && type) {
+    if (!error) authFailed = false
+  } else if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
       type: type as 'magiclink' | 'signup' | 'email',
     })
-    if (!error) {
-      return handlePostAuth(supabase, origin, redirectTo)
-    }
+    if (!error) authFailed = false
   }
 
-  return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
-}
+  if (authFailed) {
+    return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
+  }
 
-async function handlePostAuth(
-  supabase: ReturnType<typeof import('@/lib/supabase/server').createClient>,
-  origin: string,
-  redirectTo: string
-) {
+  let destination = `${origin}${redirectTo}`
+
   const { data: { user } } = await supabase.auth.getUser()
-
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -47,9 +59,16 @@ async function handlePostAuth(
       .single<{ onboarding_completed: boolean }>()
 
     if (profile && !profile.onboarding_completed) {
-      return NextResponse.redirect(`${origin}/onboarding`)
+      destination = `${origin}/onboarding`
     }
   }
 
-  return NextResponse.redirect(`${origin}${redirectTo}`)
+  const response = NextResponse.redirect(destination)
+
+  // Attach session cookies to the redirect so the browser stores them.
+  pendingCookies.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options as object)
+  })
+
+  return response
 }
