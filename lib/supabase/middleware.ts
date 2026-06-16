@@ -26,8 +26,29 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: getUserError } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
+
+  // ── DIAGNOSTIC LOG ────────────────────────────────────────────────────────
+  // Expected after a successful callback redirect to /dashboard/home:
+  //   [mw] { pathname: '/dashboard/home', hasUser: true, userId: 'uuid...', error: null }
+  //
+  // If hasUser is false here, the session cookies from the callback were not
+  // received by the browser. Check:
+  //   1. [cb:success] log — were cookiesOnResponse non-empty?
+  //   2. Browser DevTools → Network → the callback redirect response headers:
+  //      must include Set-Cookie with sb-xxx-auth-token(.0/.1) entries.
+  //   3. [cb:otp] error — was verifyOtp actually successful?
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding') || pathname.startsWith('/profile')) {
+    console.log('[mw]', {
+      pathname,
+      hasUser: !!user,
+      userId: user?.id ?? null,
+      error: getUserError?.message ?? null,
+      incomingCookieNames: request.cookies.getAll().map(c => c.name),
+    })
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const protectedRoutes = ['/dashboard', '/onboarding', '/profile']
   const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
@@ -37,8 +58,6 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/auth/login'
     url.searchParams.set('redirectTo', pathname)
     const response = NextResponse.redirect(url)
-    // Copy any cookies that getUser() may have written (e.g. a token refresh
-    // attempt) so they reach the browser and are not silently discarded.
     supabaseResponse.cookies.getAll().forEach(cookie => {
       response.cookies.set(cookie.name, cookie.value, cookie)
     })

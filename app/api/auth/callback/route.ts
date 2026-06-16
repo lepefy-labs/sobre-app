@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
 import type { User } from '@supabase/supabase-js'
 
-// Force dynamic so Vercel never caches this route and strips Set-Cookie headers.
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
@@ -13,20 +12,23 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard/home'
 
-  // Collect cookies that Supabase wants to persist and apply them manually to
-  // the final redirect response. We cannot use next/headers cookieStore.set()
-  // here because those writes go into Next.js's implicit response, not into the
-  // explicit NextResponse.redirect() we return — so the browser would receive
-  // the redirect with no Set-Cookie headers and the session would be lost.
+  // ── DIAGNOSTIC LOG 1 ──────────────────────────────────────────────────────
+  // Expected in Vercel logs:
+  //   [cb:params] { hasCode: false, hasTokenHash: true, tokenHashPrefix: 'pkce_xxxxx', type: 'magiclink' }
+  //   [cb:cookies] ['sb-xxx-auth-code-verifier', ...]   ← must include the verifier
   //
-  // IMPORTANT: we do NOT call supabase.auth.getUser() after the OTP/code
-  // exchange. getUser() internally calls getSession(), which reads from
-  // getAll() — still seeing the original empty request cookies, not the ones
-  // just written by verifyOtp. In some @supabase/ssr versions this causes a
-  // second setAll() call with maxAge=0 that overwrites the valid session
-  // cookies in pendingCookies, effectively deleting the session before the
-  // browser ever receives it. Instead we use the User object returned directly
-  // by verifyOtp / exchangeCodeForSession.
+  // If tokenHashPrefix starts with 'pkce_' AND 'sb-xxx-auth-code-verifier' is
+  // NOT in the cookie list, verifyOtp will fail because the PKCE code verifier
+  // is missing (link opened in a different browser/device than where OTP was requested).
+  console.log('[cb:params]', {
+    hasCode: !!code,
+    hasTokenHash: !!token_hash,
+    tokenHashPrefix: token_hash?.substring(0, 15),
+    type,
+  })
+  console.log('[cb:cookies]', request.cookies.getAll().map(c => c.name))
+  // ─────────────────────────────────────────────────────────────────────────
+
   const pendingCookies: { name: string; value: string; options?: object }[] = []
 
   const supabase = createServerClient<Database>(
@@ -48,21 +50,52 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+    // ── DIAGNOSTIC LOG 2a ──────────────────────────────────────────────────
+    // Expected (success): [cb:code] { error: null, hasUser: true, pendingCookiesCount: 2+ }
+    // If error: the code is expired or the code-verifier cookie is missing.
+    console.log('[cb:code]', {
+      error: error?.message ?? null,
+      hasUser: !!data?.user,
+      userId: data?.user?.id ?? null,
+      pendingCookiesCount: pendingCookies.length,
+      pendingCookieNames: pendingCookies.map(c => c.name),
+    })
+    // ────────────────────────────────────────────────────────────────────────
+
     if (!error) user = data.user
   } else if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash,
       type: type as 'magiclink' | 'signup' | 'email',
     })
+
+    // ── DIAGNOSTIC LOG 2b ──────────────────────────────────────────────────
+    // Expected (success): [cb:otp] { error: null, hasUser: true, pendingCookiesCount: 2+ }
+    //
+    // If error is 'invalid otp' or 'Token has expired' → token already used or stale.
+    // If error is 'PKCE flow' or similar → verifyOtp is the wrong method for pkce_ tokens;
+    //   the token should be passed to exchangeCodeForSession() instead.
+    // If pendingCookiesCount === 0 even on success → setAll is never called;
+    //   session is not persisted and the browser gets no cookies.
+    console.log('[cb:otp]', {
+      error: error?.message ?? null,
+      errorCode: (error as { code?: string } | null)?.code ?? null,
+      hasUser: !!data?.user,
+      userId: data?.user?.id ?? null,
+      pendingCookiesCount: pendingCookies.length,
+      pendingCookieNames: pendingCookies.map(c => c.name),
+    })
+    // ────────────────────────────────────────────────────────────────────────
+
     if (!error) user = data.user
   }
 
   if (!user) {
+    console.log('[cb:fail] no user after auth — redirecting to error')
     return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
   }
 
-  // Check onboarding using the User returned by the auth operation — no
-  // extra getUser() call that would read stale empty request cookies.
   let destination = `${origin}${redirectTo}`
 
   const { data: profile } = await supabase
@@ -77,10 +110,14 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(destination)
 
-  // Attach every cookie Supabase asked to set (session chunks, code-verifier
-  // deletion, etc.) to the redirect response so the browser stores them.
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options as object)
+  })
+
+  console.log('[cb:success]', {
+    userId: user.id,
+    destination,
+    cookiesOnResponse: response.cookies.getAll().map(c => c.name),
   })
 
   return response
