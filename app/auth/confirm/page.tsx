@@ -1,17 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-// Client-side PKCE magic-link confirmation.
-//
-// The server-side callback cannot complete the PKCE exchange for pkce_ tokens
-// because @supabase/supabase-js v2.43 does not send the code_verifier in
-// verifyOtp(). The code_verifier lives in a browser cookie written by
-// signInWithOtp(). Here the browser Supabase client handles the full PKCE
-// exchange natively and stores the session in cookies automatically.
-export default function ConfirmPage() {
+function ConfirmInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -42,5 +35,19 @@ export default function ConfirmPage() {
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
       <p className="text-sm text-stone-400">Accesso in corso…</p>
     </div>
+  )
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+          <p className="text-sm text-stone-400">Accesso in corso…</p>
+        </div>
+      }
+    >
+      <ConfirmInner />
+    </Suspense>
   )
 }
