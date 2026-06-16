@@ -12,6 +12,21 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard/home'
 
+  // PKCE magic-link tokens (pkce_ prefix) cannot be verified server-side
+  // because @supabase/supabase-js v2.43 does not forward the code_verifier
+  // in the verifyOtp() request body, causing Supabase to return user but
+  // session: null. The code_verifier lives in the browser cookie set by
+  // signInWithOtp(). Delegate to the client-side /auth/confirm page, which
+  // uses createBrowserClient — the browser handles the PKCE exchange natively
+  // and stores the session in cookies automatically.
+  if (token_hash?.startsWith('pkce_') && type) {
+    const confirmUrl = new URL(`${origin}/auth/confirm`)
+    confirmUrl.searchParams.set('token_hash', token_hash)
+    confirmUrl.searchParams.set('type', type)
+    confirmUrl.searchParams.set('redirectTo', redirectTo)
+    return NextResponse.redirect(confirmUrl)
+  }
+
   const pendingCookies: { name: string; value: string; options?: object }[] = []
 
   const supabase = createServerClient<Database>(
@@ -32,71 +47,17 @@ export async function GET(request: NextRequest) {
   let user: User | null = null
 
   if (code) {
-    // Standard PKCE OAuth code — exchangeCodeForSession reads the
-    // code-verifier cookie and completes the PKCE exchange.
+    // OAuth / PKCE authorization code — exchangeCodeForSession reads the
+    // code-verifier cookie and completes the exchange.
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) user = data.user
-
   } else if (token_hash && type) {
-
-    if (token_hash.startsWith('pkce_')) {
-      // @supabase/supabase-js v2.43 verifyOtp() does not forward the
-      // code_verifier when calling POST /auth/v1/verify, so the Supabase
-      // server verifies the OTP identity but refuses to create a session
-      // (returns user: {...}, session: null). pendingCookies stays empty and
-      // the browser receives no Set-Cookie headers — hence the auth loop.
-      //
-      // Fix: POST directly to /auth/v1/verify with the code_verifier already
-      // stored in the browser cookie by signInWithOtp(). On success, call
-      // setSession() so the SSR storage adapter fires setAll() and writes the
-      // session tokens into pendingCookies.
-      const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
-      const codeVerifier = request.cookies.get(
-        `sb-${projectRef}-auth-token-code-verifier`
-      )?.value
-
-      const verifyRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          },
-          body: JSON.stringify({
-            token_hash,
-            type,
-            ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
-          }),
-        }
-      )
-
-      if (verifyRes.ok) {
-        const tokenData = await verifyRes.json() as {
-          access_token?: string
-          refresh_token?: string
-          error?: string
-        }
-
-        if (tokenData.access_token && tokenData.refresh_token) {
-          // setSession() decodes the JWT locally and calls _saveSession()
-          // → setAll() → pendingCookies gets the session chunks.
-          const { data, error } = await supabase.auth.setSession({
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token,
-          })
-          if (!error) user = data.user
-        }
-      }
-
-    } else {
-      // Standard OTP magic-link (non-PKCE): plain token_hash, verifyOtp works.
-      const { data, error } = await supabase.auth.verifyOtp({
-        token_hash,
-        type: type as 'magiclink' | 'signup' | 'email',
-      })
-      if (!error) user = data.user
-    }
+    // Standard OTP (non-PKCE): plain token_hash, verifyOtp works correctly.
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash,
+      type: type as 'magiclink' | 'signup' | 'email',
+    })
+    if (!error) user = data.user
   }
 
   if (!user) {
@@ -117,8 +78,6 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(destination)
 
-  // Attach every cookie Supabase wrote (session chunks + code-verifier
-  // deletion) to the redirect so the browser stores the session.
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options as object)
   })
