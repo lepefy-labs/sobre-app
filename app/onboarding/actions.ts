@@ -25,7 +25,8 @@ export async function saveOnboarding(
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    throw new Error('Utente non autenticato')
+    console.error('saveOnboarding error:', authError)
+    return { success: false, error: 'not_authenticated' }
   }
 
   const { error } = await supabase
@@ -41,6 +42,7 @@ export async function saveOnboarding(
     } as never)
 
   if (error) {
+    console.error('saveOnboarding error:', error)
     return { success: false, error: error.message }
   }
 

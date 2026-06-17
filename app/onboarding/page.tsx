@@ -20,13 +20,13 @@ export default function OnboardingPage() {
     try {
       const result = await saveOnboarding({ name, lang, morningTime, eveningTime })
       if (!result.success) {
-        setErrorMsg('Qualcosa è andato storto. Riprova.')
+        setErrorMsg(result.error ?? 'Qualcosa è andato storto. Riprova.')
         setLoading(false)
         return
       }
       router.push('/dashboard/home')
-    } catch {
-      setErrorMsg('Qualcosa è andato storto. Riprova.')
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Qualcosa è andato storto. Riprova.')
       setLoading(false)
     }
   }
