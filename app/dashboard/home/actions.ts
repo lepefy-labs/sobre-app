@@ -46,13 +46,16 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
   const todayMood: MoodValue | null = todayMoodRow?.value ?? null
 
   // Try personalized content via DB function
-  const { data: fnResult } = await supabase.rpc('get_today_content', {
-    p_user_id: user.id,
-    p_slot: slot,
-  })
+  const { data: fnResult } = await supabase.rpc(
+    'get_today_content',
+    { p_user_id: user.id, p_slot: slot } as never
+  )
 
-  if (fnResult && fnResult.length > 0) {
-    const row = fnResult[0]
+  type RpcRow = { content_id: string; content_type: ContentType; title: string | null; body: string; tags: string[] }
+  const rpcRows = fnResult as RpcRow[] | null
+
+  if (rpcRows && rpcRows.length > 0) {
+    const row = rpcRows[0]
     return {
       user: { name: profile?.name ?? null },
       content: {
