@@ -25,25 +25,24 @@ export async function saveOnboarding(
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    console.error('saveOnboarding error:', authError)
-    return { success: false, error: 'not_authenticated' }
+    throw new Error('Utente non autenticato')
   }
+
+  const { name, lang, morningTime, eveningTime } = payload
 
   const { error } = await supabase
     .from('profiles')
-    .upsert({
-      id: user.id,
-      email: user.email ?? '',
-      name: payload.name || null,
-      lang: payload.lang,
-      notif_morning_time: payload.morningTime,
-      notif_evening_time: payload.eveningTime,
+    .update({
+      name,
+      lang,
+      notif_morning_time: morningTime,
+      notif_evening_time: eveningTime,
       onboarding_completed: true,
-    } as never)
+    })
+    .eq('id', user.id)
 
   if (error) {
-    console.error('saveOnboarding error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: 'Qualcosa è andato storto. Riprova.' }
   }
 
   return { success: true }
