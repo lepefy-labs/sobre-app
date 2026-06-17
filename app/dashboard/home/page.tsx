@@ -1,11 +1,9 @@
-import { getHomeData } from './actions'
+import { getHomeData, saveMood } from './actions'
 import ContentCard from '@/components/dashboard/ContentCard'
 import MoodCheckin from '@/components/dashboard/MoodCheckin'
-import { saveMood } from './actions'
 import type { MoodValue, NotificationSlot } from '@/types/database'
 
 function getCurrentSlot(): NotificationSlot {
-  // Determine slot based on Europe/Rome time (UTC+1 / UTC+2 DST)
   const now = new Date()
   const romeHour = new Date(
     now.toLocaleString('en-US', { timeZone: 'Europe/Rome' })
@@ -29,7 +27,6 @@ export default async function DashboardHomePage() {
 
   return (
     <div className="min-h-screen bg-stone-50 px-5 pt-14 pb-8 flex flex-col gap-6">
-      {/* Greeting */}
       <div>
         <p className="text-xs text-stone-400 uppercase tracking-widest font-light">
           {slotGreeting[slot]}
@@ -39,7 +36,6 @@ export default async function DashboardHomePage() {
         )}
       </div>
 
-      {/* Content */}
       {content ? (
         <ContentCard content={content} />
       ) : (
@@ -48,7 +44,6 @@ export default async function DashboardHomePage() {
         </div>
       )}
 
-      {/* Mood check-in */}
       <MoodCheckin slot={slot} initialMood={todayMood} onSave={handleSaveMood} />
     </div>
   )
