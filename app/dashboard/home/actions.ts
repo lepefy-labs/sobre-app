@@ -41,9 +41,9 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
     .eq('user_id', user.id)
     .eq('slot', slot)
     .eq('recorded_date', today)
-    .maybeSingle()
+    .maybeSingle<{ value: MoodValue }>()
 
-  const todayMood = (todayMoodRow?.value ?? null) as MoodValue | null
+  const todayMood: MoodValue | null = todayMoodRow?.value ?? null
 
   // Try personalized content via DB function
   const { data: fnResult } = await supabase.rpc('get_today_content', {
@@ -77,9 +77,9 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
     .eq('recorded_date', today)
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle<{ value: MoodValue }>()
 
-  const lastMood = (lastMoodRow?.value ?? null) as MoodValue | null
+  const lastMood: MoodValue | null = lastMoodRow?.value ?? null
 
   let query = supabase
     .from('contents')
