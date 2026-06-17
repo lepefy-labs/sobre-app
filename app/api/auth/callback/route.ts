@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
-import type { User } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,24 +9,11 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
-  const type = searchParams.get('type')
+  const type = searchParams.get('type') as EmailOtpType | null
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard/home'
 
-  // PKCE magic-link tokens (pkce_ prefix) cannot be verified server-side
-  // because @supabase/supabase-js v2.43 does not forward the code_verifier
-  // in the verifyOtp() request body, causing Supabase to return user but
-  // session: null. The code_verifier lives in the browser cookie set by
-  // signInWithOtp(). Delegate to the client-side /auth/confirm page, which
-  // uses createBrowserClient — the browser handles the PKCE exchange natively
-  // and stores the session in cookies automatically.
-  if (token_hash?.startsWith('pkce_') && type) {
-    const confirmUrl = new URL(`${origin}/auth/confirm`)
-    confirmUrl.searchParams.set('token_hash', token_hash)
-    confirmUrl.searchParams.set('type', type)
-    confirmUrl.searchParams.set('redirectTo', redirectTo)
-    return NextResponse.redirect(confirmUrl)
-  }
-
+  // Accumulate cookies written by the Supabase client during auth exchange
+  // and apply them manually to the redirect response.
   const pendingCookies: { name: string; value: string; options?: object }[] = []
 
   const supabase = createServerClient<Database>(
@@ -44,32 +31,31 @@ export async function GET(request: NextRequest) {
     }
   )
 
-  let user: User | null = null
+  let userId: string | null = null
 
   if (code) {
-    // OAuth / PKCE authorization code — exchangeCodeForSession reads the
-    // code-verifier cookie and completes the exchange.
+    // OAuth or PKCE authorization code — reads code_verifier from cookies
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) user = data.user
+    if (!error) userId = data.user?.id ?? null
   } else if (token_hash && type) {
-    // Standard OTP (non-PKCE): plain token_hash, verifyOtp works correctly.
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash,
-      type: type as 'magiclink' | 'signup' | 'email',
-    })
-    if (!error) user = data.user
+    // Email OTP (magic link / signup confirmation)
+    // In @supabase/supabase-js >= 2.64 the code_verifier is read automatically
+    // from the request cookies and sent to Supabase, completing the PKCE exchange.
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash, type })
+    if (!error) userId = data.user?.id ?? null
   }
 
-  if (!user) {
+  if (!userId) {
     return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
   }
 
+  // Check onboarding status and redirect accordingly
   let destination = `${origin}${redirectTo}`
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('onboarding_completed')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single<{ onboarding_completed: boolean }>()
 
   if (profile && !profile.onboarding_completed) {

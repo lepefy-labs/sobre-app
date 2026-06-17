@@ -8,13 +8,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Escludi:
-     * - _next/static, _next/image (asset statici)
-     * - favicon.ico, manifest.json, sw.js, icons (PWA)
-     * - /api/auth/callback (il callback gestisce i cookie da solo — il
-     *   middleware non ha sessione in questo punto e non deve interferire)
-     * - /api/webhooks (webhook Stripe: autenticato via signature)
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|api/auth/callback|api/webhooks).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
   ],
 }
