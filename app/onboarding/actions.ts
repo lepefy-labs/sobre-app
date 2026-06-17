@@ -38,7 +38,7 @@ export async function saveOnboarding(
       notif_morning_time: payload.morningTime,
       notif_evening_time: payload.eveningTime,
       onboarding_completed: true,
-    })
+    } as never)
 
   if (error) {
     return { success: false, error: error.message }
