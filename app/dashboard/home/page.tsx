@@ -26,7 +26,7 @@ export default async function DashboardHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 px-5 pt-14 pb-8 flex flex-col gap-6">
+    <div className="min-h-screen bg-stone-50 px-5 pt-14 pb-8 flex flex-col gap-6 max-w-sm mx-auto">
       <div>
         <p className="text-xs text-stone-400 uppercase tracking-widest font-light">
           {slotGreeting[slot]}
