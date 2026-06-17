@@ -38,7 +38,7 @@ export async function saveOnboarding(
       notif_morning_time: morningTime,
       notif_evening_time: eveningTime,
       onboarding_completed: true,
-    })
+    } as never)
     .eq('id', user.id)
 
   if (error) {
