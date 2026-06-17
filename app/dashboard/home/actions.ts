@@ -73,20 +73,18 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
     .maybeSingle()
   const lastMood: MoodValue | null = (lastMoodRaw as MoodRow | null)?.value ?? null
 
-  let query = supabase
+  const baseQuery = supabase
     .from('contents')
     .select('id, type, title, body, tags')
     .eq('lang', lang)
     .eq('slot', slot)
     .eq('is_active', true)
 
-  if (lastMood !== null) {
-    query = query.or(`mood_target.is.null,mood_target.eq.${lastMood}`)
-  } else {
-    query = query.is('mood_target', null)
-  }
-
-  const { data: contentsRaw } = await query.limit(50)
+  const { data: contentsRaw } = await (
+    lastMood !== null
+      ? baseQuery.or(`mood_target.is.null,mood_target.eq.${lastMood}`)
+      : baseQuery.is('mood_target', null)
+  ).limit(50)
   const contents = contentsRaw as ContentRow[] | null
 
   let content: HomeData['content'] = null
@@ -110,7 +108,7 @@ export async function saveMood(
   const today = new Date().toISOString().split('T')[0]
 
   const { error } = await supabase.from('moods').upsert(
-    { user_id: user.id, value, slot, recorded_date: today, note: null },
+    { user_id: user.id, value, slot, recorded_date: today, note: null } as never,
     { onConflict: 'user_id,slot,recorded_date', ignoreDuplicates: false }
   )
 
