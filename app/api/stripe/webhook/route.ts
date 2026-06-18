@@ -7,12 +7,6 @@ export const dynamic = 'force-dynamic'
 
 type SubscriptionStatus = 'free' | 'pro' | 'cancelled' | 'past_due'
 
-function mapStripeStatus(status: string): SubscriptionStatus {
-  if (status === 'active') return 'pro'
-  if (status === 'past_due') return 'past_due'
-  return 'cancelled'
-}
-
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature') ?? ''
@@ -26,13 +20,15 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const userId = session.metadata?.supabase_user_id
-    const stripeCustomerId = typeof session.customer === 'string' ? session.customer : null
-    const stripeSubscriptionId = typeof session.subscription === 'string' ? session.subscription : null
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session
+      const userId = session.metadata?.supabase_user_id
+      const stripeCustomerId = typeof session.customer === 'string' ? session.customer : null
+      const stripeSubscriptionId = typeof session.subscription === 'string' ? session.subscription : null
 
-    if (userId) {
+      if (!userId) break
+
       await supabase.from('subscriptions' as never).upsert(
         {
           user_id: userId,
@@ -47,55 +43,63 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .update({ subscription_status: 'pro' } as never)
         .eq('id', userId)
+
+      break
     }
-  }
 
-  if (event.type === 'customer.subscription.updated') {
-    const subscription = event.data.object as Stripe.Subscription
-    const subscriptionId = subscription.id
-    const newStatus = mapStripeStatus(subscription.status)
+    case 'customer.subscription.updated': {
+      const subscription = event.data.object as Stripe.Subscription
 
-    await supabase
-      .from('subscriptions' as never)
-      .update({ status: newStatus } as never)
-      .eq('stripe_subscription_id', subscriptionId)
+      let status: SubscriptionStatus
+      if (subscription.status === 'active') status = 'pro'
+      else if (subscription.status === 'past_due') status = 'past_due'
+      else status = 'cancelled'
 
-    const { data: sub } = await supabase
-      .from('subscriptions' as never)
-      .select('user_id')
-      .eq('stripe_subscription_id', subscriptionId)
-      .maybeSingle()
+      const { data: existingSub } = await supabase
+        .from('subscriptions' as never)
+        .select('user_id')
+        .eq('stripe_subscription_id', subscription.id)
+        .single()
 
-    const userId = (sub as { user_id: string } | null)?.user_id
-    if (userId) {
+      const userId = (existingSub as { user_id: string } | null)?.user_id
+      if (!userId) break
+
+      await supabase
+        .from('subscriptions' as never)
+        .update({ status } as never)
+        .eq('stripe_subscription_id', subscription.id)
+
       await supabase
         .from('profiles')
-        .update({ subscription_status: newStatus } as never)
+        .update({ subscription_status: status } as never)
         .eq('id', userId)
+
+      break
     }
-  }
 
-  if (event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object as Stripe.Subscription
-    const subscriptionId = subscription.id
+    case 'customer.subscription.deleted': {
+      const subscription = event.data.object as Stripe.Subscription
 
-    await supabase
-      .from('subscriptions' as never)
-      .update({ status: 'cancelled' } as never)
-      .eq('stripe_subscription_id', subscriptionId)
+      const { data: existingSub } = await supabase
+        .from('subscriptions' as never)
+        .select('user_id')
+        .eq('stripe_subscription_id', subscription.id)
+        .single()
 
-    const { data: sub } = await supabase
-      .from('subscriptions' as never)
-      .select('user_id')
-      .eq('stripe_subscription_id', subscriptionId)
-      .maybeSingle()
+      const userId = (existingSub as { user_id: string } | null)?.user_id
+      if (!userId) break
 
-    const userId = (sub as { user_id: string } | null)?.user_id
-    if (userId) {
+      await supabase
+        .from('subscriptions' as never)
+        .update({ status: 'cancelled' } as never)
+        .eq('stripe_subscription_id', subscription.id)
+
       await supabase
         .from('profiles')
         .update({ subscription_status: 'cancelled' } as never)
         .eq('id', userId)
+
+      break
     }
   }
 
