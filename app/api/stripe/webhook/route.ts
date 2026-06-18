@@ -72,13 +72,24 @@ export async function POST(request: NextRequest) {
       else if (subscription.status === 'past_due') status = 'past_due'
       else status = 'cancelled'
 
-      const priceId = subscription.items.data[0]?.price?.id ?? null
-      const periodStart = subscription.current_period_start
-        ? new Date(subscription.current_period_start * 1000).toISOString()
+      const item = subscription.items.data[0] as any
+      const priceId = item?.price?.id ?? null
+      const periodStart = item?.current_period_start
+        ? new Date(item.current_period_start * 1000).toISOString()
         : null
-      const periodEnd = subscription.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toISOString()
+      const periodEnd = item?.current_period_end
+        ? new Date(item.current_period_end * 1000).toISOString()
         : null
+
+      console.log('[webhook] subscription.updated values:', {
+        id: subscription.id,
+        status: subscription.status,
+        priceId,
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
+        periodStart,
+        periodEnd,
+      })
 
       const { data: existingSub, error: lookupError } = await supabase
         .from('subscriptions' as never)
