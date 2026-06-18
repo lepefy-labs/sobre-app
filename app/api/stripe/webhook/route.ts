@@ -30,15 +30,28 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      const { error: subError } = await supabase
+      const { error: insertError } = await supabase
         .from('subscriptions' as never)
-        .upsert({
+        .insert({
           user_id: userId,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: session.subscription as string,
           status: 'pro',
-        } as never, { onConflict: 'user_id' })
-      if (subError) console.error('[webhook] subscriptions upsert error:', subError)
+        } as never)
+
+      if (insertError && insertError.code === '23505') {
+        const { error: updateError } = await supabase
+          .from('subscriptions' as never)
+          .update({
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+            status: 'pro',
+          } as never)
+          .eq('user_id', userId)
+        if (updateError) console.error('[webhook] subscriptions update error:', updateError)
+      } else if (insertError) {
+        console.error('[webhook] subscriptions insert error:', insertError)
+      }
 
       const { error: profileError } = await supabase
         .from('profiles')
