@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: session.subscription as string,
+          stripe_price_id: null,
           status: 'pro',
         } as never)
 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
           .update({
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
+            stripe_price_id: null,
             status: 'pro',
           } as never)
           .eq('user_id', userId)
@@ -70,6 +72,14 @@ export async function POST(request: NextRequest) {
       else if (subscription.status === 'past_due') status = 'past_due'
       else status = 'cancelled'
 
+      const priceId = subscription.items.data[0]?.price?.id ?? null
+      const periodStart = subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null
+      const periodEnd = subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null
+
       const { data: existingSub, error: lookupError } = await supabase
         .from('subscriptions' as never)
         .select('user_id')
@@ -82,7 +92,12 @@ export async function POST(request: NextRequest) {
 
       const { error: subError } = await supabase
         .from('subscriptions' as never)
-        .update({ status } as never)
+        .update({
+          status,
+          stripe_price_id: priceId,
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+        } as never)
         .eq('stripe_subscription_id', subscription.id)
       if (subError) console.error('[webhook] subscriptions update error:', subError)
 
