@@ -7,6 +7,7 @@ export type SubscriptionStatus = 'free' | 'pro' | 'cancelled' | 'past_due'
 
 export type HomeData = {
   user: { name: string | null }
+  lang: ContentLang
   content: {
     id: string
     type: ContentType
@@ -58,6 +59,7 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
     const row = rpcRows[0]
     return {
       user: { name: profile?.name ?? null },
+      lang: profile?.lang ?? 'it',
       content: { id: row.content_id, type: row.content_type, title: row.title, body: row.body, tags: row.tags },
       todayMood,
       subscriptionStatus: profile?.subscription_status ?? 'free',
@@ -97,7 +99,7 @@ export async function getHomeData(slot: NotificationSlot): Promise<HomeData> {
     content = { id: picked.id, type: picked.type, title: picked.title, body: picked.body, tags: picked.tags }
   }
 
-  return { user: { name: profile?.name ?? null }, content, todayMood, subscriptionStatus: profile?.subscription_status ?? 'free' }
+  return { user: { name: profile?.name ?? null }, lang, content, todayMood, subscriptionStatus: profile?.subscription_status ?? 'free' }
 }
 
 export async function saveMood(

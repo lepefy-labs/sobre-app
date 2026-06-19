@@ -1,6 +1,7 @@
 'use client'
 
-import type { ContentType } from '@/types/database'
+import { getT } from '@/lib/i18n'
+import type { ContentType, ContentLang } from '@/types/database'
 
 type ContentCardProps = {
   content: {
@@ -9,11 +10,13 @@ type ContentCardProps = {
     body: string
     tags: string[]
   }
+  lang: ContentLang
 }
 
-export default function ContentCard({ content }: ContentCardProps) {
+export default function ContentCard({ content, lang }: ContentCardProps) {
   const { type, title, body, tags } = content
   const visibleTags = tags.slice(0, 3)
+  const tipLabel = getT(lang).dashboard.content.tipLabel
 
   return (
     <div className="bg-white rounded-2xl border border-stone-100 p-6 flex flex-col gap-4">
@@ -37,7 +40,7 @@ export default function ContentCard({ content }: ContentCardProps) {
       {type === 'tip' && (
         <>
           <span className="self-start text-xs font-medium text-amber-600 uppercase tracking-wider">
-            Consiglio
+            {tipLabel}
           </span>
           <p className="text-base text-stone-700 leading-relaxed">{body}</p>
         </>

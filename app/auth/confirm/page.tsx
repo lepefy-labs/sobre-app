@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getLangFromStorage, getT } from '@/lib/i18n'
 
 function ConfirmInner() {
   const router = useRouter()
@@ -72,9 +73,11 @@ function ConfirmInner() {
     verify()
   }, [router, searchParams])
 
+  const loadingText = getT(getLangFromStorage()).auth.confirm.loading
+
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-      <p className="text-sm text-stone-400">Accesso in corso…</p>
+      <p className="text-sm text-stone-400">{loadingText}</p>
     </div>
   )
 }
@@ -84,7 +87,7 @@ export default function ConfirmPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-          <p className="text-sm text-stone-400">Accesso in corso…</p>
+          <p className="text-sm text-stone-400">{getT(getLangFromStorage()).auth.confirm.loading}</p>
         </div>
       }
     >

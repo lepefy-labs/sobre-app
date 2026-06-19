@@ -1,35 +1,37 @@
 'use client'
 
 import { useState } from 'react'
-import type { MoodValue, NotificationSlot } from '@/types/database'
-
-const moods: { value: MoodValue; label: string }[] = [
-  { value: 'very_low', label: 'A zero' },
-  { value: 'low', label: 'Giù' },
-  { value: 'neutral', label: 'Così così' },
-  { value: 'good', label: 'Bene' },
-  { value: 'great', label: 'Carica' },
-]
+import { getT } from '@/lib/i18n'
+import type { MoodValue, NotificationSlot, ContentLang } from '@/types/database'
 
 type MoodCheckinProps = {
   slot: NotificationSlot
   initialMood: MoodValue | null
   onSave: (value: MoodValue) => Promise<void>
+  lang: ContentLang
 }
 
-export default function MoodCheckin({ initialMood, onSave }: MoodCheckinProps) {
+export default function MoodCheckin({ initialMood, onSave, lang }: MoodCheckinProps) {
   const [selected, setSelected] = useState<MoodValue | null>(initialMood)
+  const t = getT(lang).dashboard.mood
+
+  const moods: { value: MoodValue; label: string }[] = [
+    { value: 'very_low', label: t.options.very_low },
+    { value: 'low', label: t.options.low },
+    { value: 'neutral', label: t.options.neutral },
+    { value: 'good', label: t.options.good },
+    { value: 'great', label: t.options.great },
+  ]
 
   function handleTap(value: MoodValue) {
     if (selected !== null) return
-    // Optimistic update — fire and forget
     setSelected(value)
     void onSave(value)
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-stone-400 tracking-wide">Come ti senti?</p>
+      <p className="text-xs text-stone-400 tracking-wide">{t.question}</p>
 
       <div className="flex gap-1.5">
         {moods.map((mood) => {
@@ -56,7 +58,7 @@ export default function MoodCheckin({ initialMood, onSave }: MoodCheckinProps) {
       </div>
 
       {selected !== null && (
-        <p className="text-xs text-stone-400 text-right">Registrato ✓</p>
+        <p className="text-xs text-stone-400 text-right">{t.confirmed}</p>
       )}
     </div>
   )
