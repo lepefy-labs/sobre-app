@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && pathname.startsWith('/auth/login')) {
+  if (user && (pathname.startsWith('/auth/login') || pathname === '/lang')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard/home'
     return NextResponse.redirect(url)
