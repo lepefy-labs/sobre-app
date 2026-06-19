@@ -44,7 +44,7 @@ export const fr: Translations = {
     mood: {
       question: 'Comment tu te sens ?',
       confirmed: 'Enregistré ✓',
-      options: { very_low: 'À plat', low: 'Bas', neutral: 'Comme ci comme ça', good: 'Bien', great: 'En forme' },
+      options: { very_low: 'À vide', low: 'Pas top', neutral: 'Bof', good: 'Bien', great: 'Au top' },
     },
     content: { tipLabel: 'Conseil' },
     pro: {
