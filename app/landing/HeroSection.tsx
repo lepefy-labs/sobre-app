@@ -32,7 +32,7 @@ export default function HeroSection({ lang }: { lang: ContentLang }) {
         </p>
         <div className="space-y-3">
           <Link
-            href="/auth/login"
+            href="/lang"
             className="inline-block bg-stone-800 text-white rounded-2xl py-3 px-8 text-sm font-medium hover:bg-stone-700 transition"
           >
             {t.cta}

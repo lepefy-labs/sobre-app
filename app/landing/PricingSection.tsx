@@ -65,7 +65,7 @@ export default function PricingSection({ lang }: { lang: ContentLang }) {
               ))}
             </ul>
             <Link
-              href="/auth/login"
+              href="/lang"
               className="block text-center bg-stone-800 text-white rounded-2xl py-3 px-8 text-sm font-medium hover:bg-stone-700 transition"
             >
               {t.free.cta}
@@ -92,7 +92,7 @@ export default function PricingSection({ lang }: { lang: ContentLang }) {
               ))}
             </ul>
             <Link
-              href="/auth/login"
+              href="/lang"
               className="block text-center bg-white text-stone-800 rounded-2xl py-3 px-8 text-sm font-medium hover:bg-stone-100 transition"
             >
               {t.pro.cta}
