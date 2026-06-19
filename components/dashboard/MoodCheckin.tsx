@@ -4,10 +4,11 @@ import { useState } from 'react'
 import type { MoodValue, NotificationSlot } from '@/types/database'
 
 const moods: { value: MoodValue; label: string }[] = [
-  { value: 'low', label: 'Stanca' },
-  { value: 'neutral', label: 'Ok' },
+  { value: 'very_low', label: 'A zero' },
+  { value: 'low', label: 'Giù' },
+  { value: 'neutral', label: 'Così così' },
   { value: 'good', label: 'Bene' },
-  { value: 'great', label: 'Benissimo' },
+  { value: 'great', label: 'Carica' },
 ]
 
 type MoodCheckinProps = {
@@ -30,7 +31,7 @@ export default function MoodCheckin({ initialMood, onSave }: MoodCheckinProps) {
     <div className="flex flex-col gap-3">
       <p className="text-xs text-stone-400 tracking-wide">Come ti senti?</p>
 
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {moods.map((mood) => {
           const isSelected = selected === mood.value
           const isRecorded = selected !== null
@@ -40,7 +41,7 @@ export default function MoodCheckin({ initialMood, onSave }: MoodCheckinProps) {
               key={mood.value}
               onClick={() => handleTap(mood.value)}
               disabled={isRecorded}
-              className={`flex-1 py-2 px-1 rounded-full border text-sm transition-colors ${
+              className={`flex-1 py-2 rounded-full border text-xs transition-colors ${
                 isSelected
                   ? 'bg-stone-800 border-stone-800 text-white'
                   : isRecorded

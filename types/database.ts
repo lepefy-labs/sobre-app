@@ -1,6 +1,6 @@
 export type ContentType = 'thought' | 'story' | 'tip'
 export type ContentLang = 'it' | 'fr'
-export type MoodValue = 'low' | 'neutral' | 'good' | 'great'
+export type MoodValue = 'very_low' | 'low' | 'neutral' | 'good' | 'great'
 export type NotificationSlot = 'morning' | 'evening'
 export type SubscriptionStatus = 'free' | 'pro' | 'cancelled' | 'past_due'
 
