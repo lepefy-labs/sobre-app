@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database, ContentType, ContentLang, MoodValue, NotificationSlot } from '@/types/database'
+import type { ContentType, ContentLang, MoodValue, NotificationSlot } from '@/types/database'
 
 type ContentRow = { id: string; type: ContentType; title: string | null; body: string; tags: string[] }
 type MoodRow = { value: MoodValue }
@@ -12,8 +11,11 @@ export type FreeContent = {
   tags: string[]
 } | null
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type QueryClient = { from: (table: string) => any }
+
 export async function getFreeContent(
-  supabase: SupabaseClient<Database>,
+  supabase: QueryClient,
   userId: string,
   lang: ContentLang,
   slot: NotificationSlot
