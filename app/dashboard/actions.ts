@@ -12,7 +12,7 @@ export async function saveOneSignalPlayerId(
 
   const { error } = await supabase
     .from('profiles')
-    .update({ onesignal_player_id: playerId })
+    .update({ onesignal_player_id: playerId } as never)
     .eq('id', user.id)
 
   return error ? { success: false, error: error.message } : { success: true }
