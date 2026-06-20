@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { getLangFromStorage, getT } from '@/lib/i18n'
 import type { ContentLang } from '@/types/database'
+import OneSignalInit from '@/components/OneSignalInit'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -59,6 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
+      <OneSignalInit />
       <main className="flex-1 pb-20">{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-100">
