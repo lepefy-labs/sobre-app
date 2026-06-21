@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lepefylabs.sobre",
+      "sha256_cert_fingerprints": ["47:00:0D:C9:E7:16:D9:69:1A:85:CF:43:71:DD:7D:3A:58:5B:66:4C:91:78:46:75:5D:27:24:AA:CA:F2:F8:F7"]
+    }
+  }
+]
