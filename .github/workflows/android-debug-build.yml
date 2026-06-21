@@ -46,9 +46,14 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
+      # Shows where Gradle actually wrote the APK — useful if the upload path is wrong
+      - name: Find APK output
+        run: find android/app/build/outputs -name "*.apk" 2>/dev/null || echo "No APK found in outputs"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: sobre-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           retention-days: 14
