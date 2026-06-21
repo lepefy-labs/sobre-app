@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.69.1",
     "next": "14.2.5",
@@ -17,6 +19,7 @@
     "stripe": "^16.12.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
