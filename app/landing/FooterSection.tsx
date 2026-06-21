@@ -13,9 +13,9 @@ export default function FooterSection({ lang }: { lang: ContentLang }) {
         <p className="text-xl font-light text-stone-800">Sobre</p>
         <p className="text-xs text-stone-400">{t.payoff}</p>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-stone-400">
-          <a href="#" className="hover:text-stone-600 transition">Privacy Policy</a>
+          <a href="/privacy" className="hover:text-stone-600 transition">Privacy Policy</a>
           <span>·</span>
-          <a href="#" className="hover:text-stone-600 transition">Termini</a>
+          <a href="/terms" className="hover:text-stone-600 transition">Termini</a>
           <span>·</span>
           <a href="mailto:ciao@robertinboukeng.com" className="hover:text-stone-600 transition">ciao@robertinboukeng.com</a>
         </div>
