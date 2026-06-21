@@ -25,11 +25,10 @@ jobs:
           # Caches ~/.gradle between runs; shaves ~1-2 min on repeat builds
           cache: 'gradle'
 
-      # ubuntu-latest ships SDK up to android-35; compileSdkVersion=36 needs this
+      # ubuntu-latest ships SDK up to android-35; compileSdkVersion=36 needs this.
+      # sdkmanager is not in PATH — use full path under $ANDROID_HOME.
       - name: Install Android SDK Platform 36
-        run: sdkmanager "platforms;android-36"
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
 
       - name: Install npm dependencies
         run: npm install
