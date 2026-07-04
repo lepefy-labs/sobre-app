@@ -8,7 +8,7 @@ Il developer (Robertin) lavora esclusivamente via interfacce web e carica i file
 manualmente tramite GitHub web UI. Claude Code deve:
 
 1. Scrivere e committare il codice localmente (`git add` + `git commit`)
-2. Generare uno ZIP con i soli file nuovi/modificati
+2. Generare uno ZIP con i soli file nuovi/modificati, con il percorso relativo dei file da caricare
 3. Consegnare lo ZIP tramite `SendUserFile`
 4. Spiegare nel messaggio quali file sono nello ZIP e come caricarli su GitHub
 
