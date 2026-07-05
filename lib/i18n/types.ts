@@ -6,6 +6,11 @@ export type Translations = {
       checkEmailTitle: string; checkEmailBody: string; checkEmailInstruction: string; checkEmailBack: string
     }
     confirm: { loading: string }
+    verify: {
+      title: string; subtitle: string; codePlaceholder: string
+      buttonCta: string; buttonLoading: string; resend: string; resendConfirm: string
+      changeEmail: string; errorInvalid: string
+    }
   }
   onboarding: {
     title: string; subtitle: string; intro: string; nameLabel: string; namePlaceholder: string

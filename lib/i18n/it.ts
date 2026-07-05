@@ -17,6 +17,17 @@ export const it: Translations = {
       checkEmailBack: "Usa un'altra email",
     },
     confirm: { loading: 'Accesso in corso…' },
+    verify: {
+      title: 'Controlla la tua email',
+      subtitle: 'Abbiamo inviato un codice a',
+      codePlaceholder: '000000',
+      buttonCta: 'Verifica →',
+      buttonLoading: 'Verifica in corso...',
+      resend: 'Rinvia codice',
+      resendConfirm: 'Codice inviato ✓',
+      changeEmail: "Usa un'altra email",
+      errorInvalid: 'Codice non valido o scaduto. Riprova.',
+    },
   },
   onboarding: {
     title: 'Sobre',
